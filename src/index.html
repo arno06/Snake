@@ -1,0 +1,337 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<script src="scripts/minuit4/M4.js" type="text/javascript"></script>
+		<script type="text/javascript">
+			Array.prototype.find = function(pMixed)
+			{
+				var t;
+				for(var i = 0, max = this.length; i<max; i++)
+				{
+					t = true;
+					for(var j in pMixed)
+						t = t && this[i][j] == pMixed[j];
+					if(t)
+						return t;
+				}
+				return false;
+			};
+
+			NodeList.prototype.forEach = Array.prototype.forEach;
+
+			Scene.COLORS =
+			{
+				background:"rgb(170, 204, 170)",
+				border:"rgb(0,0,0)",
+				snake:"rgb(0,0,0)",
+				target:"rgb(0,0,0)",
+				FONT:
+				{
+					pause:"rgb(0,0,0)",
+					gameover:"rgb(0,0,0)",
+					highscore:"rgb(0,0,0)",
+					scores_user:"rgb(0,0,0)",
+					scores_score:"rgb(0,0,0)"
+				}
+			};
+
+			function Scene(pWidth, pHeight, pId)
+			{
+				this.canvas = Element.create("canvas", {width:pWidth, height:pHeight, id:pId});
+				this.context = this.canvas.getContext("2d");
+				this.snakeWidth = 10;
+			}
+
+			Scene.prototype.onPause = function(){this.pauseHandlers = arguments;};
+			Scene.prototype.onPlay = function(){this.playHandlers = arguments;};
+			Scene.prototype.onResume = function(){this.resumeHandlers = arguments;};
+			Scene.prototype.onGameOver = function() {this.overHandlers = arguments};
+			Scene.prototype.start = function(){for(var i = 0, max = this.playHandlers.length;i<max;i++)this.playHandlers[i]();};
+			Scene.prototype.pause = function(){for(var i = 0, max = this.pauseHandlers.length;i<max;i++)this.pauseHandlers[i]();};
+			Scene.prototype.resume = function (){for(var i = 0, max = this.resumeHandlers.length;i<max;i++)this.resumeHandlers[i]();};
+
+			Scene.prototype.reset = function ()
+			{
+				this.canvas.width = this.canvas.width +1 - 1;
+				this.drawInterface();
+			};
+
+			Scene.prototype.drawInterface = function ()
+			{
+				this.context.lineWidth = 2;
+				this.context.strokeStyle = Scene.COLORS.border;
+				this.context.fillStyle = Scene.COLORS.background;
+				this.context.moveTo(0, 0);
+				this.context.lineTo(this.canvas.width, 0);
+				this.context.lineTo(this.canvas.width, this.canvas.height);
+				this.context.lineTo(0, this.canvas.height);
+				this.context.lineTo(0, 0);
+				this.context.fill();
+				this.context.stroke();
+			};
+
+			Scene.prototype.drawTarget = function (pX, pY)
+			{
+				pX*=this.snakeWidth;
+				pY*=this.snakeWidth;
+				this.context.fillStyle = Scene.COLORS.target;
+				this.context.fillRect(pX, pY, 4, 4);
+				this.context.fillRect(pX+6, pY, 4, 4);
+				this.context.fillRect(pX, pY+6, 4, 4);
+				this.context.fillRect(pX+6, pY+6, 4, 4);
+			};
+
+			Scene.prototype.drawSnakePoint = function(pX, pY)
+			{
+				pX*=this.snakeWidth;
+				pY*=this.snakeWidth;
+				this.context.fillStyle = Scene.COLORS.snake;
+				this.context.strokeStyle = Scene.COLORS.snake;
+				this.context.beginPath();
+				this.context.moveTo(pX+2, pY);
+				this.context.lineTo(pX+this.snakeWidth - 2, pY);
+				this.context.lineTo(pX+this.snakeWidth-1, pY+1);
+				this.context.lineTo(pX+this.snakeWidth-1, pY+this.snakeWidth-2);
+				this.context.lineTo(pX+this.snakeWidth - 2, pY+this.snakeWidth - 1);
+				this.context.lineTo(pX+2, pY+this.snakeWidth-1);
+				this.context.lineTo(pX+1, pY+this.snakeWidth - 2);
+				this.context.lineTo(pX+1, pY+1);
+				this.context.closePath();
+				this.context.stroke();
+				this.context.fill();
+			};
+
+			Scene.prototype.drawPauseScreen = function()
+			{
+				this.context.font = "22px arial, sans-sérif";
+				this.context.globalAlpha = .35;
+				this.context.fillStyle = Scene.COLORS.background;
+				this.context.fillRect(0,0, this.canvas.width, this.canvas.height);
+				this.context.globalAlpha = 1;
+				this.context.fillStyle = "rgb(0,0,0)";
+				this.context.fillText("PAUSE", 60,150);
+			};
+
+			Scene.prototype.drawGameOverScreen = function()
+			{
+				this.context.font = "22px arial, sans-sérif";
+				this.context.globalAlpha = .35;
+				this.context.fillStyle = Scene.COLORS.background;
+				this.context.fillRect(0,0, this.canvas.width, this.canvas.height);
+				this.context.globalAlpha = 1;
+				this.context.fillStyle = Scene.COLORS.FONT.gameover;
+				this.context.fillText("GAME OVER", 30,70);
+				this.context.fillStyle = Scene.COLORS.FONT.highscore;
+				this.context.fillText("HIGHSCORE", 30,130);
+			};
+
+			Scene.prototype.drawScores = function (pDatas)
+			{
+				this.context.font = "12px arial, sans-sérif";
+				for(var i in pDatas)
+				{
+					this.context.fillStyle = Scene.COLORS.FONT.scores_user;
+					this.context.fillText(pDatas[i].user_snake, 30,160 + (i*15));
+					this.context.fillStyle = Scene.COLORS.FONT.scores_score;
+					this.context.fillText(pDatas[i].score_snake, 140,160 + (i*15));
+				}
+			};
+
+			function Proxy(pInstance, pMethod)
+			{
+				return function(){pMethod.apply(pInstance)};
+			}
+
+			function Point(pX, pY){this.x = pX; this.y = pY;}
+			
+			const TOP = "top";
+			const LEFT = "left";
+			const RIGHT = "right";
+			const BOTTOM = "bottom";
+			window.addEventListener("load", init, false);
+			window.addEventListener("keydown", keydownHandler, false);
+			var scene;
+			var next;
+			var snake;
+			var refresh;
+			var target;
+			var direction;
+			var t_render;
+			var t_target;
+			var debug;
+			var score = 0;
+			var evt = "touchend" in document?"touchstart":"click";
+			
+			function init()
+			{
+				document.querySelectorAll(".arrows img").forEach(function(e)
+				{
+					e.addEventListener(evt, arrowClickHandler, false);
+				});
+				scene = new Scene(200, 300, "scene");
+				scene.onPause(pauseHandler);
+				scene.onResume(frameHandler, targetHandler);
+				scene.onPlay(start);
+				setup();
+				scene.start();
+			}
+
+			function start()
+			{
+				next = new Point(1, 0);
+				snake = [new Point(2,0), new Point(1, 0), new Point(0, 0)];
+				refresh = 300;
+				scene.resume();
+			}
+
+			function setup()
+			{
+				document.getElementById("loader").style.display = "none";
+				document.querySelector(".content").appendChild(debug = Element.create("div", {id:"debug"}));
+				document.querySelector(".content").appendChild(scene.canvas);
+			}
+
+			function pauseHandler()
+			{
+				clearTimer();
+				scene.drawPauseScreen();
+			}
+
+			function clearTimer()
+			{
+				clearTimeout(t_render);
+				clearTimeout(t_target);
+			}
+
+			function targetHandler()
+			{
+				target = new Point(Math.round(Math.random() * (19)),Math.round(Math.random() * (29)));
+				t_target = setTimeout(targetHandler, 6000);
+			}
+
+			function frameHandler()
+			{
+				if(next.x==1&&next.y==0)
+					direction = RIGHT;
+				else if(next.x == -1 && next.y == 0)
+					direction = LEFT;
+				else if(next.x==0 && next.y == 1)
+					direction = BOTTOM;
+				else if (next.x == 0 && next.y == -1)
+					direction = TOP;
+				scene.reset();
+				var p = new Point(snake[0].x+next.x, snake[0].y+next.y);
+				if(p.x<0)
+					p.x = 19;
+				else if (p.x>=20)
+					p.x = 0;
+				if(p.y<0)
+					p.y = 29;
+				else if(p.y>=30)
+					p.y = 0;
+				debug.innerHTML = "score : "+score;
+				if(snake.find(p))
+				{
+					gameoverHandler();
+					return;
+				}
+				var eat = (target && (p.x==target.x&&p.y ==target.y));
+				var nextSnake = [p];
+				for(var i = 0, max = snake.length; i<max; i++)
+				{
+					if (eat || i<max-1)
+						nextSnake.push(snake[i]);
+					scene.drawSnakePoint(nextSnake[i].x, nextSnake[i].y);
+				}
+				if(target&&!eat)
+					scene.drawTarget(target.x, target.y);
+				if(eat)
+				{
+					score += 10;
+					target = null;
+					refresh = Math.max(refresh - 50, 60);
+					clearTimeout(t_target);
+					targetHandler();
+				}
+				snake = nextSnake;
+				t_render = setTimeout(frameHandler, refresh);
+			}
+
+			function gameoverHandler()
+			{
+				document.getElementById("loader").style.display = "block";
+				scene.drawGameOverScreen();
+				var name = prompt("Ton nom ?");
+				Request.load("php/scores.php?action=save", {user_snake:name.toUpperCase(), score_snake:score})
+						.onComplete(function(pResponse)
+				{
+					document.getElementById("loader").style.display = "none";
+					scene.drawScores(pResponse.responseJSON);
+				});
+				clearTimer();
+			}
+			function keydownHandler(e)
+			{
+				switch(e.keyCode)
+				{
+					case 37:
+						if(direction==RIGHT)
+							return;
+						next = new Point(-1,0);
+					break;
+					case 38:
+						if(direction==BOTTOM)
+							return;
+						next = new Point(0,-1);
+					break;
+					case 39:
+						if(direction==LEFT)
+							return;
+						next = new Point(1, 0);
+					break;
+					case 40:
+						if(direction == TOP)
+							return;
+						next = new Point(0, 1);
+					break;
+				}
+			}
+
+		function arrowClickHandler(e)
+		{
+			var t = e.currentTarget;
+			if(!t.getAttribute("rel"))
+				return;
+			var to = Number(t.getAttribute("rel"));
+			keydownHandler({keyCode:to});
+		}
+			
+		</script>
+		<link href="../../common/docs/docs.css" type="text/css" rel="stylesheet">
+		<title>Snake - Canvas</title>
+		<style type="text/css">
+			#loader{left:75px;top:170px;position:absolute;width:32px;height:32px;}
+			.content>*{display:block;margin:0 auto;}
+			.arrows{position:absolute;width:144px;margin-left:326px;margin-top:200px;}
+			.arrows img{position:absolute;opacity:.4;display:block;width:48px;height:48px;}
+			.arrows img[alt="up"]{margin-left:48px;}
+			.arrows img[alt="left"]{margin-top:48px;}
+			.arrows img[alt="down"]{margin-left:48px;margin-top:48px;}
+			.arrows img[alt="right"]{margin-left:96px;margin-top:48px;}
+		</style>
+	</head>
+	<body>
+		<header>
+			<h1>Snake - Canvas</h1>
+		</header>
+		<div class="content">
+			<div id="loader"><img src="assets/ajax-loader.gif" alt=""/></div>
+			<div class="arrows">
+				<img src="assets/up.png" rel="38" alt="up">
+				<img src="assets/prev.png" rel="37" alt="left">
+				<img src="assets/down.png" rel="40" alt="down">
+				<img src="assets/next.png" rel="39" alt="right">
+			</div>
+		</div>
+	</body>
+</html>
