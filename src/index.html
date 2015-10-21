@@ -103,7 +103,7 @@
 
 			Scene.prototype.drawPauseScreen = function()
 			{
-				this.context.font = "22px arial, sans-sérif";
+				this.context.font = "22px arial, sans-serif";
 				this.context.globalAlpha = .35;
 				this.context.fillStyle = Scene.COLORS.background;
 				this.context.fillRect(0,0, this.canvas.width, this.canvas.height);
@@ -114,7 +114,7 @@
 
 			Scene.prototype.drawGameOverScreen = function()
 			{
-				this.context.font = "22px arial, sans-sérif";
+				this.context.font = "22px arial, sans-serif";
 				this.context.globalAlpha = .35;
 				this.context.fillStyle = Scene.COLORS.background;
 				this.context.fillRect(0,0, this.canvas.width, this.canvas.height);
@@ -127,7 +127,7 @@
 
 			Scene.prototype.drawScores = function (pDatas)
 			{
-				this.context.font = "12px arial, sans-sérif";
+				this.context.font = "12px arial, sans-serif";
 				for(var i in pDatas)
 				{
 					this.context.fillStyle = Scene.COLORS.FONT.scores_user;
@@ -143,7 +143,7 @@
 			}
 
 			function Point(pX, pY){this.x = pX; this.y = pY;}
-			
+
 			const TOP = "top";
 			const LEFT = "left";
 			const RIGHT = "right";
@@ -161,7 +161,7 @@
 			var debug;
 			var score = 0;
 			var evt = "touchend" in document?"touchstart":"click";
-			
+
 			function init()
 			{
 				document.querySelectorAll(".arrows img").forEach(function(e)
@@ -305,7 +305,7 @@
 			var to = Number(t.getAttribute("rel"));
 			keydownHandler({keyCode:to});
 		}
-			
+
 		</script>
 		<link href="../../common/docs/docs.css" type="text/css" rel="stylesheet">
 		<title>Snake - Canvas</title>
